@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { ApplicationRef, Component, OnInit } from '@angular/core';
-import { SwUpdate } from '@angular/service-worker';
+import { SwPush, SwUpdate } from '@angular/service-worker';
 import { interval } from 'rxjs';
 
 @Component({
@@ -11,18 +11,37 @@ import { interval } from 'rxjs';
 export class AppComponent implements OnInit {
   title = 'pwa';
   todos: any[] = [];
+  readonly publicKey =
+    'BLNhRPmytqEzQk7xgfPu90wycmiZyUF1hvWkRQz7CyXt_P2zqPI72CDyIrRPcJlyMNj8PZdbYaNACUgOEHSh-9g';
 
-  constructor(private _http: HttpClient, private _update: SwUpdate, private _appRef: ApplicationRef) {
+  constructor(
+    private _http: HttpClient,
+    private _update: SwUpdate,
+    private _appRef: ApplicationRef,
+    private swPush: SwPush
+  ) {
     this.updateClient();
     this.checkUpdate();
   }
 
   ngOnInit(): void {
-    const url = 'https://jsonplaceholder.typicode.com/todos';
+    this.pushSubscription();
 
+    this.swPush.messages.subscribe((message) => {
+      console.log(message);
+    });
+
+    /* DO NOT USE HTTP CLIENT REQUEST, DO NOT, JUST DONT, SERVICE WORKER ONLY SUPPORTS FETCH SERVICE  */
+    this.swPush.notificationClicks.subscribe(({ action, notification }) => {
+      window.open(notification.data.url);
+    });
+
+    const url = 'https://jsonplaceholder.typicode.com/todos';
     this._http.get(url).subscribe((res: any) => {
       console.log(res);
       this.todos = res;
+
+      
     });
   }
 
@@ -61,15 +80,33 @@ export class AppComponent implements OnInit {
 
   /* this will trigger available updates for confirmation 😮*/
   checkUpdate(): void {
-      this._appRef.isStable.subscribe((isStable) => {
-        if(isStable) {
-          const timeInterval = interval(20000);
+    this._appRef.isStable.subscribe((isStable) => {
+      if (isStable) {
+        const timeInterval = interval(8 * 60 * 60 * 1000);
 
-          timeInterval.subscribe(() => {
-            this._update.checkForUpdate().then(() => console.log('checked'));
-            console.log('update checked');
-          })
-        }
-      }) 
+        timeInterval.subscribe(() => {
+          this._update.checkForUpdate().then(() => console.log('checked'));
+          console.log('update checked');
+        });
+      }
+    });
+  }
+
+  pushSubscription(): void {
+    if (!this.swPush.isEnabled) {
+      console.log('Notification is not enabled');
+      return;
+    }
+
+    this.swPush
+      .requestSubscription({
+        serverPublicKey: this.publicKey,
+      })
+      .then((sub) => {
+        console.log(JSON.stringify(sub));
+      })
+      .catch((err) => {
+        console.error(err);
+      });
   }
 }
