@@ -40,8 +40,6 @@ export class AppComponent implements OnInit {
     this._http.get(url).subscribe((res: any) => {
       console.log(res);
       this.todos = res;
-
-      
     });
   }
 
@@ -109,4 +107,25 @@ export class AppComponent implements OnInit {
         console.error(err);
       });
   }
+
+  postSync(): void {
+    let obj = {
+      name: 'Alvin'
+    }
+    this._http.post('http://localhost:3000/data', obj).subscribe(res => {
+      console.log(res)
+    }, err => {
+      console.error('calling the background sync', err);
+      this.backgroundSync();
+    })
+  }
+
+  backgroundSync(): void {
+    navigator.serviceWorker.ready.then((swRegistration: any) =>
+      swRegistration.sync.register('post-data')
+    ).catch(err => {
+      console.error(err);
+    })
+  }
 }
+ 
