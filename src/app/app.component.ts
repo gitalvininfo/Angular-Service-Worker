@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ApplicationRef, Component, OnInit } from '@angular/core';
 import { SwPush, SwUpdate } from '@angular/service-worker';
 import { interval } from 'rxjs';
+import { IndexedDBService } from './services/indexed-db.service';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +19,8 @@ export class AppComponent implements OnInit {
     private _http: HttpClient,
     private _update: SwUpdate,
     private _appRef: ApplicationRef,
-    private swPush: SwPush
+    private swPush: SwPush,
+    private indexDB: IndexedDBService
   ) {
     this.updateClient();
     this.checkUpdate();
@@ -110,22 +112,30 @@ export class AppComponent implements OnInit {
 
   postSync(): void {
     let obj = {
-      name: 'Alvin'
-    }
-    this._http.post('http://localhost:3000/data', obj).subscribe(res => {
-      console.log(res)
-    }, err => {
-      console.error('calling the background sync', err);
-      this.backgroundSync();
-    })
+      name: 'Alvin',
+    };
+    this._http.post('http://localhost:3000/data', obj).subscribe(
+      (res) => {
+        console.log(res);
+      },
+      (err) => {
+        this.indexDB
+          .addUser(obj.name)
+          .then((res) => {
+            this.backgroundSync();
+          })
+          .catch((err) => {
+            console.error(err);
+          });
+      }
+    );
   }
 
   backgroundSync(): void {
-    navigator.serviceWorker.ready.then((swRegistration: any) =>
-      swRegistration.sync.register('post-data')
-    ).catch(err => {
-      console.error(err);
-    })
+    navigator.serviceWorker.ready
+      .then((swRegistration: any) => swRegistration.sync.register('post-data'))
+      .catch((err) => {
+        console.error(err);
+      });
   }
 }
- 
